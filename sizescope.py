@@ -34,6 +34,7 @@ except Exception:
     pass
 
 APP_NAME = "SizeScope"
+__version__ = "1.1.0"
 FILE_ATTRIBUTE_REPARSE_POINT = 0x400
 
 # --------------------------------------------------------------------------
@@ -394,8 +395,7 @@ def reveal_in_explorer(path):
 # --------------------------------------------------------------------------
 
 class TreemapView(tk.Frame):
-    MIN_RECT = 3      # px, below this children are not drawn
-    LABEL_STRIP = 15  # px reserved at the top of a folder for its label
+    MIN_RECT = 3  # px, below this children are not drawn
 
     def __init__(self, master, app):
         super().__init__(master, background=CANVAS_BG)
@@ -463,14 +463,27 @@ class TreemapView(tk.Frame):
             c.tag_bind(iid, "<Double-Button-1>", self._make_double(kid))
             c.tag_bind(iid, "<Button-3>", self._make_right(kid))
             if kid.is_dir:
-                if rh > 34 and rw > 40:
+                strip = self._label_strip()
+                if rh > strip * 2 + 4 and rw > 40:
                     self._draw_folder_label(kid, iid, rx, ry, rw)
-                    self._draw_children(kid, (rx + 1, ry + self.LABEL_STRIP + 1,
-                                              rw - 2, rh - self.LABEL_STRIP - 2))
+                    self._draw_children(kid, (rx + 1, ry + strip + 1,
+                                              rw - 2, rh - strip - 2))
                 else:
                     self._draw_children(kid, (rx + 1, ry + 1, rw - 2, rh - 2))
             else:
                 self._draw_file_label(kid, iid, rx, ry, rw, rh)
+
+    def _label_strip(self):
+        """Height reserved for a folder label — tracks the actual font size,
+        so labels never get cropped or overlapped at high display scaling."""
+        return self.font_bold.metrics("linespace") + 3
+
+    def apply_dpi(self):
+        """Recreate fonts for the current scaling and redraw."""
+        self.font_name = tkfont.Font(family="Segoe UI", size=9)
+        self.font_size = tkfont.Font(family="Segoe UI", size=8)
+        self.font_bold = tkfont.Font(family="Segoe UI", size=9, weight="bold")
+        self.render()
 
     def _draw_folder_label(self, kid, iid, rx, ry, rw):
         if self.font_bold.measure(kid.name) <= rw - 6:
@@ -479,16 +492,20 @@ class TreemapView(tk.Frame):
             self._labeled.add(iid)
 
     def _draw_file_label(self, kid, iid, x, y, w, h):
-        if w < 30 or h < 16:
+        ls_name = self.font_name.metrics("linespace")
+        ls_size = self.font_size.metrics("linespace")
+        if w < 30 or h < ls_name + 2:
             return
         size_txt = human_size(kid.size)
         if self.font_name.measure(kid.name) <= w - 6:
-            if h >= 30 and self.font_size.measure(size_txt) <= w - 6:
+            if h >= ls_name + ls_size + 6 and \
+                    self.font_size.measure(size_txt) <= w - 6:
                 c = self.canvas
-                c.create_text(x + w / 2, y + h / 2 - 7, text=kid.name,
+                top = y + (h - ls_name - ls_size) / 2.0
+                c.create_text(x + w / 2, top + ls_name / 2.0, text=kid.name,
                               fill="#ffffff", font=self.font_name)
-                c.create_text(x + w / 2, y + h / 2 + 7, text=size_txt,
-                              fill="#e8eaee", font=self.font_size)
+                c.create_text(x + w / 2, top + ls_name + ls_size / 2.0,
+                              text=size_txt, fill="#e8eaee", font=self.font_size)
             else:
                 self.canvas.create_text(x + w / 2, y + h / 2, text=kid.name,
                                         fill="#ffffff", font=self.font_name)
@@ -624,6 +641,8 @@ class SunburstView(tk.Frame):
         self._geom = None    # (cx, cy, r0)
         self._hl_item = None
         self.font_label = tkfont.Font(family="Segoe UI", size=8)
+        self.center_font = tkfont.Font(family="Segoe UI", size=11, weight="bold")
+        self.center_size_font = tkfont.Font(family="Segoe UI", size=10)
 
         self.canvas.bind("<Configure>", lambda e: self.render())
         self.canvas.bind("<Double-Button-1>", self._on_double)
@@ -646,7 +665,10 @@ class SunburstView(tk.Frame):
             return
         cx, cy = w / 2, h / 2
         R = min(w, h) / 2 - 6
-        r0 = max(34.0, R * 0.18)
+        # the center hole must fit its two text lines at the current scaling
+        center_ls = max(self.center_font.metrics("linespace"),
+                        self.center_size_font.metrics("linespace"))
+        r0 = max(34.0, R * 0.18, center_ls * 2.6)
         self._geom = (cx, cy, r0)
         rings = min(self.MAX_RINGS, max(1, self._depth(node)))
         ring_w = (R - r0) / rings
@@ -662,11 +684,19 @@ class SunburstView(tk.Frame):
         # center hole: name + size of the current folder
         c.create_oval(cx - r0 + 2, cy - r0 + 2, cx + r0 - 2, cy + r0 - 2,
                       fill=CANVAS_BG, outline=FOLDER_SHADES[0])
-        c.create_text(cx, cy - 8, text=node.name, fill=FG,
-                      font=("Segoe UI", 11, "bold"),
-                      width=max(40, int(r0 * 1.6)), justify="center")
-        c.create_text(cx, cy + 12, text=human_size(node.size), fill=ACCENT,
-                      font=("Segoe UI", 10))
+        c.create_text(cx, cy - center_ls * 0.62, text=node.name, fill=FG,
+                      font=self.center_font,
+                      width=max(self.app._px(40), int(r0 * 1.6)),
+                      justify="center")
+        c.create_text(cx, cy + center_ls * 0.72, text=human_size(node.size),
+                      fill=ACCENT, font=self.center_size_font)
+
+    def apply_dpi(self):
+        """Recreate fonts for the current scaling and redraw."""
+        self.font_label = tkfont.Font(family="Segoe UI", size=8)
+        self.center_font = tkfont.Font(family="Segoe UI", size=11, weight="bold")
+        self.center_size_font = tkfont.Font(family="Segoe UI", size=10)
+        self.render()
 
     def _segments(self, node, a0, span):
         """Split `span` degrees among node's children proportional to size.
@@ -850,8 +880,9 @@ class App(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title(APP_NAME + " — Disk Usage Explorer")
-        self.geometry("1200x740")
-        self.minsize(self.MIN_W, self.MIN_H)
+        self.ui_scale = max(1.0, self._display_scale())
+        self.geometry("%dx%d" % (self._px(1200), self._px(740)))
+        self.minsize(self._px(self.MIN_W), self._px(self.MIN_H))
         self.configure(background=BG)
         self._set_icon()
 
@@ -871,6 +902,60 @@ class App(tk.Tk):
         self._bind_keys()
 
     # -- icon -----------------------------------------------------------------
+
+    def _display_scale(self):
+        """UI scale factor from the display's DPI (1.0 = 96 dpi / 100%)."""
+        try:
+            return float(self.tk.call("tk", "scaling")) * 72.0 / 96.0
+        except Exception:
+            return 1.0
+
+    def _px(self, n):
+        """Convert a design pixel (at 100% scaling) to actual pixels."""
+        return int(round(n * self.ui_scale))
+
+    def _refresh_widget_fonts(self, widget):
+        """Re-apply each widget's font so Tk re-realizes glyph metrics after
+        the effective scaling changed (otherwise required sizes stay stale)."""
+        try:
+            font = widget.cget("font")
+            if font and str(font) not in ("TkDefaultFont", "TkTextFont"):
+                widget.configure(font=font)
+        except (tk.TclError, AttributeError):
+            pass
+        for child in widget.winfo_children():
+            self._refresh_widget_fonts(child)
+
+    def apply_ui_scale(self):
+        """Re-apply every scale-dependent size (window, styles, panes, views).
+
+        Called once at startup; also safe to call again if the effective
+        scaling changes (used by the DPI self-test to simulate 100–300%).
+        """
+        self.ui_scale = max(1.0, self._display_scale())
+        self.geometry("%dx%d" % (self._px(1200), self._px(740)))
+        self.minsize(self._px(self.MIN_W), self._px(self.MIN_H))
+        self._refresh_widget_fonts(self)
+        try:
+            self._style.configure("Treeview", rowheight=self._px(22))
+            self.top_files.column("size", width=self._px(70))
+            self.top_files.column("name", width=self._px(160))
+            self._pane_main.configure(sashwidth=self._px(6))
+            self._pane_side.configure(sashwidth=self._px(5))
+            self._pane_main.paneconfigure(self._side_panel,
+                                          minsize=self._px(260),
+                                          width=self._px(310))
+            self._pane_main.paneconfigure(self._view_holder,
+                                          minsize=self._px(420))
+            self._pane_side.paneconfigure(self._list_frame,
+                                          minsize=self._px(120))
+            self._pane_side.paneconfigure(self._info_frame,
+                                          minsize=self._px(150))
+        except AttributeError:
+            pass  # called before the widgets exist
+        if hasattr(self, "treemap"):
+            self.treemap.apply_dpi()
+            self.sunburst.apply_dpi()
 
     def _set_icon(self):
         try:
@@ -910,6 +995,7 @@ class App(tk.Tk):
 
     def _build_style(self):
         style = ttk.Style(self)
+        self._style = style
         try:
             style.theme_use("clam")
         except Exception:
@@ -922,7 +1008,7 @@ class App(tk.Tk):
         style.configure("TLabel", background=BG, foreground=FG)
         style.configure("Dim.TLabel", background=BG, foreground=FG_DIM)
         style.configure("Treeview", background="#1a1e26", foreground=FG,
-                        fieldbackground="#1a1e26", rowheight=22,
+                        fieldbackground="#1a1e26", rowheight=self._px(22),
                         bordercolor=SEPARATOR, borderwidth=0)
         style.configure("Treeview.Heading", background=PANEL, foreground=FG_DIM,
                         relief="flat", font=("Segoe UI", 9, "bold"))
@@ -940,14 +1026,16 @@ class App(tk.Tk):
         b = tk.Button(parent, text=text, command=command, relief="flat", bd=0,
                       bg=BUTTON_BG, fg=FG, activebackground=ACCENT,
                       activeforeground="#ffffff", disabledforeground="#565d69",
-                      font=("Segoe UI", 9, "bold"), padx=12, pady=4, cursor="hand2")
+                      font=("Segoe UI", 9, "bold"), padx=self._px(12),
+                      pady=self._px(4), cursor="hand2")
         if width:
             b.configure(width=width)
         return b
 
     def _build_ui(self):
         # ---------- toolbar ----------
-        tb = tk.Frame(self, background=PANEL, padx=8, pady=6)
+        self.toolbar = tb = tk.Frame(self, background=PANEL,
+                                     padx=self._px(8), pady=self._px(6))
         tb.pack(fill="x", side="top")
 
         self.btn_scan = self._flat_button(tb, "📂 Scan folder…", self.choose_and_scan)
@@ -973,11 +1061,11 @@ class App(tk.Tk):
         self.btn_vtree = tk.Button(toggle, text="▤ Treemap",
                                    command=lambda: self.set_view("treemap"),
                                    relief="flat", bd=0, font=("Segoe UI", 9, "bold"),
-                                   padx=12, pady=4, cursor="hand2")
+                                   padx=self._px(12), pady=self._px(4), cursor="hand2")
         self.btn_vsun = tk.Button(toggle, text="◍ Sunburst",
                                   command=lambda: self.set_view("sunburst"),
                                   relief="flat", bd=0, font=("Segoe UI", 9, "bold"),
-                                  padx=12, pady=4, cursor="hand2")
+                                  padx=self._px(12), pady=self._px(4), cursor="hand2")
         self.btn_vtree.pack(side="left")
         self.btn_vsun.pack(side="left")
 
@@ -986,59 +1074,75 @@ class App(tk.Tk):
         self.crumb_bar.pack(fill="x", side="top")
 
         # ---------- main area ----------
-        pane = tk.PanedWindow(self, orient="horizontal", sashwidth=6,
-                              sashrelief="flat", background=BG, bd=0, sashpad=2)
-        pane.pack(fill="both", expand=True, padx=8, pady=(2, 4))
+        self._pane_main = pane = tk.PanedWindow(
+            self, orient="horizontal", sashwidth=self._px(6),
+            sashrelief="flat", background=BG, bd=0, sashpad=2)
+        pane.pack(fill="both", expand=True, padx=self._px(8), pady=(2, self._px(4)))
 
-        view_holder = tk.Frame(pane, background=CANVAS_BG)
+        self._view_holder = view_holder = tk.Frame(pane, background=CANVAS_BG)
         self.treemap = TreemapView(view_holder, self)
         self.sunburst = SunburstView(view_holder, self)
         self.treemap.pack(fill="both", expand=True)
 
-        side = tk.Frame(pane, background=PANEL, width=310)
-        side.pack_propagate(False)
+        # ---------- side panel ----------
+        # Vertical PanedWindow: the Largest-Files list and the Details/info
+        # pane are independently resizable via a draggable horizontal sash;
+        # the whole column resizes horizontally via the main sash.
+        self._pane_side = side = tk.PanedWindow(
+            pane, orient="vertical", sashwidth=self._px(5), sashrelief="flat",
+            background=PANEL, bd=0, sashpad=1)
 
-        tk.Label(side, text="LARGEST FILES", background=PANEL, foreground=FG_DIM,
-                 font=("Segoe UI", 8, "bold"), anchor="w"
-                 ).pack(fill="x", padx=10, pady=(10, 2))
-        self.top_files = ttk.Treeview(side, columns=("size", "name", "path"),
+        # -- top pane: largest files list
+        self._list_frame = list_frame = tk.Frame(side, background=PANEL)
+        tk.Label(list_frame, text="LARGEST FILES", background=PANEL,
+                 foreground=FG_DIM, font=("Segoe UI", 8, "bold"), anchor="w"
+                 ).pack(fill="x", padx=self._px(10), pady=(self._px(10), self._px(2)))
+        list_body = tk.Frame(list_frame, background=PANEL)
+        list_body.pack(fill="both", expand=True, padx=(self._px(8), 0))
+        self.top_files = ttk.Treeview(list_body, columns=("size", "name", "path"),
                                       show="headings", selectmode="browse")
         self.top_files.heading("size", text="Size")
         self.top_files.heading("name", text="Name")
-        self.top_files.column("size", width=70, anchor="ne", stretch=False)
-        self.top_files.column("name", width=160, anchor="w", stretch=True)
+        self.top_files.column("size", width=self._px(70), anchor="ne", stretch=False)
+        self.top_files.column("name", width=self._px(160), anchor="w", stretch=True)
         self.top_files.column("path", width=0, stretch=False)  # hidden, for reveal
-        vsb = ttk.Scrollbar(side, orient="vertical", command=self.top_files.yview)
+        vsb = ttk.Scrollbar(list_body, orient="vertical",
+                            command=self.top_files.yview)
         self.top_files.configure(yscrollcommand=vsb.set)
         self.top_files.bind("<<TreeviewSelect>>", self._on_topfile_select)
         self.top_files.bind("<Double-Button-1>", self._on_topfile_double)
-        self.top_files.pack(side="left", fill="both", expand=True, padx=(8, 0), pady=0)
-        vsb.pack(side="left", fill="y", padx=(2, 0))
+        self.top_files.pack(side="left", fill="both", expand=True)
+        vsb.pack(side="left", fill="y", padx=(self._px(2), 0))
 
-        # details + legend stacked under the file list
-        bottom = tk.Frame(side, background=PANEL)
-        bottom.pack(side="bottom", fill="x")
-        tk.Label(bottom, text="DETAILS", background=PANEL, foreground=FG_DIM,
+        # -- bottom pane: details (content anchored at the top) + legend
+        self._info_frame = info_frame = tk.Frame(side, background=PANEL)
+        tk.Label(info_frame, text="DETAILS", background=PANEL, foreground=FG_DIM,
                  font=("Segoe UI", 8, "bold"), anchor="w"
-                 ).pack(fill="x", padx=10, pady=(10, 2))
-        self.details = tk.Text(bottom, height=9, background="#1a1e26", foreground=FG,
-                               relief="flat", font=("Consolas", 9), wrap="word",
-                               padx=8, pady=6, state="disabled")
-        self.details.pack(fill="x", padx=8)
+                 ).pack(fill="x", padx=self._px(10), pady=(self._px(10), self._px(2)))
+        self.details = tk.Text(info_frame, height=9, background="#1a1e26",
+                               foreground=FG, relief="flat", font=("Consolas", 9),
+                               wrap="word", padx=self._px(8), pady=self._px(6),
+                               state="disabled")
+        self.details.pack(fill="both", expand=True, padx=self._px(8))
         self.details.tag_configure("k", foreground=FG_DIM)
         self.details.tag_configure("v", foreground="#ffffff")
-        legend = tk.Frame(bottom, background=PANEL)
-        legend.pack(fill="x", padx=10, pady=(6, 10))
+        legend = tk.Frame(info_frame, background=PANEL)
+        legend.pack(side="bottom", fill="x", padx=self._px(10),
+                    pady=(self._px(6), self._px(10)))
         for i, (cat, col) in enumerate(CATEGORY_COLORS.items()):
             cell = tk.Frame(legend, background=PANEL)
-            cell.grid(row=i // 3, column=i % 3, sticky="w", padx=(0, 6), pady=1)
-            tk.Frame(cell, width=10, height=10, background=col).pack(
-                side="left", padx=(0, 4))
+            cell.grid(row=i // 3, column=i % 3, sticky="w",
+                      padx=(0, self._px(6)), pady=1)
+            tk.Frame(cell, width=self._px(10), height=self._px(10),
+                     background=col).pack(side="left", padx=(0, self._px(4)))
             tk.Label(cell, text=cat, background=PANEL, foreground=FG_DIM,
                      font=("Segoe UI", 8)).pack(side="left")
 
-        pane.add(view_holder, stretch="always", minsize=420)
-        pane.add(side, minsize=260, width=310)
+        side.add(list_frame, stretch="always", minsize=self._px(120))
+        side.add(info_frame, stretch="never", minsize=self._px(150))
+        pane.add(view_holder, stretch="always", minsize=self._px(420))
+        self._side_panel = side
+        pane.add(side, minsize=self._px(260), width=self._px(310))
 
         # ---------- status bar ----------
         sb = tk.Frame(self, background=PANEL, padx=10, pady=3)
@@ -1620,6 +1724,74 @@ def run_selftest():
     app.after(1200, app.destroy)
     app.mainloop()
     print("GUI smoke test window closed.")
+
+    # ---- display-scaling checks (simulated 100% .. 300%, e.g. 4K screens) ----
+    import tkinter.font as tkfont_mod
+    ref_font = None
+    for pct in (100, 150, 200, 300):
+        dpi_app = App()
+        dpi_app.geometry("1100x700+4000+4000")  # fixed, off-screen
+        dpi_app.load_tree(root)
+        dpi_app.update()
+        dpi_app.tk.call("tk", "scaling", (pct / 100.0) * 96.0 / 72.0)
+        dpi_app.apply_ui_scale()
+        dpi_app.update()
+
+        scale_ok = abs(dpi_app.ui_scale - pct / 100.0) < 0.26
+        check("dpi %d%%: scale detected (%.2f)" % (pct, dpi_app.ui_scale),
+              scale_ok)
+
+        # toolbar fits: estimate from fresh font metrics (point-size fonts and
+        # _px() paddings both scale linearly with the display scaling)
+        est_tb = 0
+
+        def _walk_tb(w):
+            nonlocal est_tb
+            for ch in w.winfo_children():
+                if isinstance(ch, tk.Button):
+                    est_tb += (tkfont_mod.Font(
+                        family="Segoe UI", size=9,
+                        weight="bold").measure(ch.cget("text")) +
+                        2 * dpi_app._px(12) + 6)
+                _walk_tb(ch)
+        _walk_tb(dpi_app.toolbar)
+        check("dpi %d%%: toolbar fits (est %dpx < %dpx)" % (
+            pct, est_tb, dpi_app.winfo_width()),
+            est_tb <= dpi_app.winfo_width() - 2)
+
+        # list rows must not crop the text (row height >= font line height)
+        rowh = int(dpi_app._style.lookup("Treeview", "rowheight"))
+        ref_font = tkfont_mod.Font(family="Segoe UI", size=9)
+        ls = ref_font.metrics("linespace")
+        check("dpi %d%%: list rows fit text (%d >= %d)" % (pct, rowh, ls),
+              rowh >= ls)
+
+        # treemap folder-label strip must cover the label font
+        strip = dpi_app.treemap._label_strip()
+        bold_ls = dpi_app.treemap.font_bold.metrics("linespace")
+        check("dpi %d%%: folder label strip (%d >= %d)" % (pct, strip, bold_ls),
+              strip >= bold_ls + 2)
+
+        # sunburst center hole must fit its two text lines
+        dpi_app.set_view("sunburst")
+        dpi_app.update()
+        _cx, _cy, r0 = dpi_app.sunburst._geom
+        center_ls = max(
+            dpi_app.sunburst.center_font.metrics("linespace"),
+            dpi_app.sunburst.center_size_font.metrics("linespace"))
+        check("dpi %d%%: sunburst center fits (%.0f >= %.0f)" % (
+            pct, r0, center_ls * 2.6), r0 >= center_ls * 2.6 - 1e-6)
+
+        # details pane is mapped and anchored at the top of its pane
+        d = dpi_app.details
+        check("dpi %d%%: details visible" % pct, d.winfo_ismapped())
+        info_top = dpi_app._info_frame.winfo_rooty()
+        det_top = d.winfo_rooty()
+        head_h = dpi_app._style.lookup("Treeview", "rowheight")  # ~one row of slack
+        check("dpi %d%%: details anchored top" % pct,
+              0 <= det_top - info_top <= 3 * head_h)
+
+        dpi_app.destroy()
 
     if failures:
         print("\n%d FAILURE(S): %s" % (len(failures), ", ".join(failures)))

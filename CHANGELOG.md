@@ -4,6 +4,23 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] — 2026-08-16
+
+### Added
+- High-DPI support up to 300% scaling (4K screens): all pixel-based sizes
+  (window, list rows, paddings, panes) now scale with the display DPI, treemap
+  folder-label strips and file labels derive their geometry from actual font
+  metrics, and the sunburst center hole is sized to fit its text — nothing is
+  cropped or overlapping at any scaling.
+- The **Largest Files list** and the **Details panel** are now separate panes
+  with a draggable sash, independently resizable; the whole side column still
+  resizes horizontally via the main sash.
+- Details content is anchored at the top of its pane.
+- shields.io badges on the README (total & latest-release downloads, version,
+  platform, license).
+- 28 new self-test checks simulating 100/150/200/300% display scaling
+  (70 checks total).
+
 ## [1.0.0] — 2026-08-16
 
 First public release.

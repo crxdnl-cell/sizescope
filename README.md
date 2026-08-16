@@ -2,6 +2,12 @@
 
 **See what's eating your disk — visually.**
 
+[![Downloads](https://img.shields.io/github/downloads/crxdnl-cell/sizescope/total.svg?label=downloads&color=brightgreen)](https://github.com/crxdnl-cell/sizescope/releases)
+[![Downloads (latest release)](https://img.shields.io/github/downloads/crxdnl-cell/sizescope/latest/total.svg)](https://github.com/crxdnl-cell/sizescope/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/crxdnl-cell/sizescope?color=blue)](https://github.com/crxdnl-cell/sizescope/releases/latest)
+[![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)](https://github.com/crxdnl-cell/sizescope/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+
 SizeScope is a free, open-source disk-usage explorer for Windows that turns files
 and folders into graphics, so you can see at a glance what's eating your storage.
 
@@ -91,7 +97,7 @@ Scanner (thread) ──queue──► App ──► TreemapView (squarified tree
 ## Development
 
 ```bash
-python sizescope.py --selftest     # 42 checks: layout math, scanner, GUI smoke
+python sizescope.py --selftest     # 70 checks: layout math, scanner, GUI smoke, DPI 100–300%
 python make_icon.py                # regenerate sizescope.ico (pure stdlib)
 python screenshot.py               # regenerate docs/screenshot-*.png
 python -m venv .venv-build && .venv-build/Scripts/pip install pyinstaller
