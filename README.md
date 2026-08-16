@@ -3,16 +3,14 @@
 **See what's eating your disk — visually.**
 
 SizeScope is a free, open-source disk-usage explorer for Windows that turns files
-and folders into graphics, inspired by Apple's DaisyDisk / GrandPerspective
-(the classic "file size" visualizers).
+and folders into graphics, so you can see at a glance what's eating your storage.
 
 | Treemap view | Sunburst view |
 |:---:|:---:|
 | ![Treemap view](docs/screenshot-treemap.png) | ![Sunburst view](docs/screenshot-sunburst.png) |
 
-- **Treemap** — every file is a rectangle; the bigger the file, the bigger the
-  rectangle (WinDirStat style)
-- **Sunburst** — concentric rings around the current folder; the DaisyDisk look
+- **Treemap** — every file is a rectangle; bigger files get bigger rectangles
+- **Sunburst** — concentric rings around the current folder, sized by folder weight
 
 ## Features
 
@@ -118,6 +116,10 @@ docs/            screenshots
 - Treemap layout: *"Squarified Treemaps"* by Bruls, Huizing & van Wijk.
 - Design inspiration: [DaisyDisk](https://daisydiskapp.com),
   [WinDirStat](https://windirstat.net), [GrandPerspective](https://grandperspectiv.sourceforge.net).
+
+SizeScope is an independent project and is not affiliated with, endorsed by,
+or sponsored by any product mentioned above. All trademarks belong to their
+respective owners.
 
 ## License
 

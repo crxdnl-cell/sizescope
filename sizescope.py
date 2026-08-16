@@ -3,8 +3,8 @@
 SizeScope — a visual disk-usage explorer for Windows.
 
 See the size of files and folders as graphics:
-  * Treemap  — WinDirStat / GrandPerspective style rectangles
-  * Sunburst — DaisyDisk style concentric rings
+  * Treemap  — files as rectangles, area proportional to size
+  * Sunburst — concentric rings sized by folder weight
 
 Pure Python 3 + tkinter. No third-party dependencies.
 Run:       pythonw sizescope.py      (or double-click SizeScope.bat)
@@ -604,7 +604,7 @@ class TreemapView(tk.Frame):
 
 
 # --------------------------------------------------------------------------
-# Sunburst view (DaisyDisk-style rings)
+# Sunburst view (concentric rings, sized by folder weight)
 # --------------------------------------------------------------------------
 
 class SunburstView(tk.Frame):
