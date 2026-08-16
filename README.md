@@ -122,3 +122,9 @@ docs/            screenshots
 ## License
 
 [MIT](LICENSE) © 2026 crxdnl-cell
+
+The portable `SizeScope.exe` additionally embeds Python, Tcl/Tk, the
+PyInstaller bootloader and the VC++ runtime — all permissive licenses that
+allow free redistribution. Full verbatim texts:
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) (also attached to every
+release).

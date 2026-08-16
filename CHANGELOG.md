@@ -25,5 +25,9 @@ First public release.
   GUI smoke test).
 - Portable single-file `SizeScope.exe` (PyInstaller) with embedded Python and
   generated multi-size icon; `make_icon.py` and `screenshot.py` developer tools.
+- `THIRD_PARTY_NOTICES.md` — verbatim licenses for everything bundled in the
+  portable exe (CPython PSF-2, Tcl/Tk, PyInstaller bootloader exception,
+  VC++ runtime), making the exe a self-contained, properly attributed
+  distribution.
 
 [1.0.0]: https://github.com/crxdnl-cell/sizescope/releases/tag/v1.0.0
