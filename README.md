@@ -1,8 +1,5 @@
 # SizeScope 🔍
 
-![GitHub Downloads (all assets, all releases)](https://shields.io)
-![GitHub stars](https://shields.io)
-
 **See what's eating your disk — visually.**
 
 SizeScope is a free, open-source disk-usage explorer for Windows that turns files
